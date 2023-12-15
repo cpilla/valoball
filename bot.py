@@ -27,5 +27,7 @@ async def test(interaction: discord.Interaction, to_say: str, number: int):
     await interaction.response.send_message(f"{to_say} + {number}")
 
 load_dotenv()
-botKey = os.getenv("BOT_KEY")
-bot.run(botKey)
+# botKey = os.getenv("MTE3MDg4MTI1MjgzNzA0ODUxMw.GwFgEf.H5FSsy9K3Hi1I67mK1NG2yY7mC2h7t_qc5y2Hc")
+# print(botKey)
+# bot.run(botKey)
+bot.run("MTE3MDg4MTI1MjgzNzA0ODUxMw.GwFgEf.H5FSsy9K3Hi1I67mK1NG2yY7mC2h7t_qc5y2Hc")
