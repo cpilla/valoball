@@ -16,13 +16,14 @@ class Utils(commands.Cog):
         await ctx.reply(f'{extension} unloaded')
     
     @commands.command()
-    async def updateExt(self, ctx, extension):
+    async def reload(self, ctx, extension):
         try:
             await self.bot.unload_extension(f'cogs.{extension}')
         except:
             await self.bot.load_extension(f'cogs.{extension}')
         else:
             await self.bot.load_extension(f'cogs.{extension}')
+        await ctx.reply(f'{extension} reloaded')
 
 async def setup(bot):
     await bot.add_cog(Utils(bot))

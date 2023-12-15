@@ -2,6 +2,7 @@ from discord.ext import commands
 import discord
 from datetime import datetime, timedelta, timezone
 import json
+from random import random
 
 class Valoball(commands.Cog):
     def __init__(self, bot):
@@ -38,6 +39,24 @@ class RegistrationMenu(discord.ui.View):
 
     @discord.ui.button(label="Enter Queue", style=discord.ButtonStyle.green, custom_id="Enter Queue Button")
     async def enter_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Logic for adding new players to json if they are not already in it
+        foundFlag = 0
+        leaderboard = json.load(open("leaderboard.json"))
+        # print(leaderboard)
+        # print(leaderboard[-1]["id"] + 1)
+        for player in leaderboard:    # For loop accessing whole array of dictionaries (player = dict)
+            if interaction.user.id == player["id"]: # Player is already in leaderboard
+                foundFlag = 1
+                break
+        if foundFlag == 0:                              # Player is not in leaderboard
+            newPlayer = {"id": interaction.user.id, "name": interaction.user.name, "wins": 0, "losses": 0, "elo": 350}
+            leaderboard.append(newPlayer)
+            # print(leaderboard)
+            updatedJSON = json.dumps(leaderboard)
+            f = open("leaderboard.json", "w")
+            f.write(updatedJSON)
+            f.close()
+        
         if interaction.user.name not in self.bot.queue:
             self.bot.queue.append(interaction.user.name)
             await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
@@ -61,18 +80,86 @@ class RegistrationMenu(discord.ui.View):
             print(player_name)
             for player in leaderboard:
                 if player["name"] == player_name:
-                    queue_string = queue_string + ":" + get_rank(self.bot.ranks, player) + ":" + "**" + player_name + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
+                    queue_string = queue_string + ":" + get_rank(self.bot.ranks, player) + ": " + "**" + player_name + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
 
         embed = discord.Embed(title="Valoball Queue", description=queue_string,colour=0x00f549)
         self.bot.queueMessage = await interaction.channel.send(embed=embed)
     
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.name not in self.bot.queue:
-            self.bot.queue.append(interaction.user.name)
-            await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+        # if interaction.user.name not in self.bot.queue:
+        #     self.bot.queue.append(interaction.user.name)
+        #     await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
+        # else:
+        #     await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+
+        # Queue used for testing, anywhere QUEUE_TEST is, change to actual self.bot.queue for actual implementation
+        QUEUE_TEST = [{"id": 1, "name": "Tommy", "wins": 0, "losses": 0, "elo": 1561}, 
+                      {"id": 2, "name": "Cam", "wins": 0, "losses": 0, "elo": 973}, 
+                      {"id": 3, "name": "Manny", "wins": 0, "losses": 0, "elo": 916}, 
+                      {"id": 4, "name": "Massy", "wins": 0, "losses": 0, "elo": 812}, 
+                      {"id": 5, "name": "Isabelle", "wins": 0, "losses": 0, "elo": 787}, 
+                      {"id": 6, "name": "Eddy", "wins": 0, "losses": 0, "elo": 723}, 
+                      {"id": 7, "name": "Sohan", "wins": 0, "losses": 0, "elo": 482}, 
+                      {"id": 8, "name": "JR", "wins": 0, "losses": 0, "elo": 463}, 
+                      {"id": 9, "name": "Kyaw", "wins": 0, "losses": 0, "elo": 431}, 
+                      {"id": 10, "name": "Isaiah", "wins": 0, "losses": 0, "elo": 256}, 
+                      {"id": 11, "name": "Kev", "wins": 0, "losses": 0, "elo": 226}, 
+                      {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
+                      {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166},]
+
+        # numTeams = len(self.bot.queue) // 3  # Prioritize 3-player teams
+        numTeams = len(QUEUE_TEST) // 3  # Prioritize 3-player teams
+        totalElo = 0
+        eloRange = 50
+        # for player in self.bot.queue:
+        for player in QUEUE_TEST:
+            totalElo += player["elo"]
+        # avgElo = totalElo / len(self.bot.queue) # Average Elo of all players in queue
+        avgElo = totalElo / len(QUEUE_TEST) # Average Elo of all players in queue
+        
+        # While average team elos aren't in range, increase range every 5-10 iterartions
+        iterCounter = 0
+        maxRange = eloRange + 1
+        while(maxRange > eloRange): # Loop for each team generation
+            minTeamElo = avgElo
+            maxTeamElo = avgElo
+            teams = [ [] for x in range(numTeams)]
+            # remainingPlayers = self.bot.queue.copy()
+            remainingPlayers = QUEUE_TEST.copy()
+            # teamsOf4 = len(self.bot.queue) % 3
+            teamsOf4 = len(QUEUE_TEST) % 3
+            for team in range(numTeams):    # Loop for each team
+                playersPerTeam = 3
+                if (teamsOf4 > 0):  # Checking if the team needs 4 players or 3
+                    playersPerTeam = 4
+                    teamsOf4 = teamsOf4 - 1
+                for player in range(playersPerTeam):    # Loop for each player in the team
+                    playerNum = int(random() * len(remainingPlayers))   # Choosing random number for index of remaining players
+                    teams[team].append(remainingPlayers[playerNum])  # Add random player to team
+                    remainingPlayers.pop(playerNum) # Remove player from available players list
+                # teams.append(team)  # Add team to list of teams
+                teamElo = getTeamAverage(teams[team])  # Get the average elo for the team
+                if (teamElo < minTeamElo):  # Check for min
+                    minTeamElo = teamElo
+                if (teamElo > maxTeamElo):  # Check for max
+                    maxTeamElo = teamElo
+            maxRange = maxTeamElo - minTeamElo  # Get max range for checking
+            iterCounter += 1
+            if (iterCounter % 10 == 0): # Every ten iterations
+                eloRange += 50  # Increase range by 50
+            print(iterCounter)
+            print(maxRange, maxTeamElo, minTeamElo, "\n")
+        print(teams)
+            
+                
+
+
+def getTeamAverage(team):
+    totalElo = 0
+    for player in team:
+        totalElo += player["elo"]
+    return(totalElo / len(team))
 
 def get_rank(ranks, player):
     print(ranks)
