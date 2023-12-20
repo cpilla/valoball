@@ -7,18 +7,20 @@ from random import random
 class Valoball(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        bot.teams = None
         bot.regMessage = None
         bot.queueMessage = None
+        bot.TeamsMessage = None
         bot.queue = []
-        bot.ranks = {"Iron1": range(0, 29), "Iron2": range(30, 60), "Iron3": range(61, 99),
-                     "Bronze1": range(100, 129), "Bronze2": range(130, 160), "Bronze3": range(161, 199),
-                     "Silver1": range(200, 229), "Silver2": range(230, 260), "Silver3": range(261, 299),
-                     "Gold1": range(300, 329), "Gold2": range(330, 360), "Gold3": range(361, 399),
-                     "Plat1": range(400, 429), "Plat2": range(430, 460), "Plat3": range(461, 499),
-                     "Diamond1": range(500, 529), "Diamond2": range(530, 560), "Diamond3": range(561, 599),
-                     "Ascendant1": range(600, 629), "Ascendant2": range(630, 660), "Ascendant3": range(661, 699),
-                     "Immortal1": range(700, 729), "Immortal2": range(730, 760), "Immortal3": range(761, 799),
-                     "Radiant": range(800, 10000)}
+        bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
+                     "Bronze1:1185387900532170815": range(100, 129), "Bronze2:1185387901312315462": range(130, 160), "Bronze3:1185387902063095848": range(161, 199),
+                     "Silver1:1185387919666577529": range(200, 229), "Silver2:1185387982967025835": range(230, 260), "Silver3:1185387984586022932": range(261, 299),
+                     "Gold1:1185387905036857465": range(300, 329), "Gold2:1185388088671879289": range(330, 360), "Gold3:1185388089649152060": range(361, 399),
+                     "Plat1:1185387911735148564": range(400, 429), "Plat2:1185388022238281749": range(430, 460), "Plat3:1185387916093050971": range(461, 499),
+                     "Diamond1:1185387903212331059": range(500, 529), "Diamond2:1185388086339846254": range(530, 560), "Diamond3:1185388087300325417": range(561, 599),
+                     "Ascendant1:1185387897705205910": range(600, 629), "Ascendant2:1185387898493747230": range(630, 660), "Ascendant:31185387899659759656": range(661, 699),
+                     "Immortal1:1185388051661336627": range(700, 729), "Immortal2:1185387909008867400": range(730, 760), "Immortal3:1185388052588265502": range(761, 799),
+                     "Radiant:1185388311334895646": range(800, 10000)}
         
     @commands.command()
     async def spawn(self, ctx):
@@ -80,10 +82,11 @@ class RegistrationMenu(discord.ui.View):
             print(player_name)
             for player in leaderboard:
                 if player["name"] == player_name:
-                    queue_string = queue_string + ":" + get_rank(self.bot.ranks, player) + ": " + "**" + player_name + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
+                    queue_string = queue_string + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player_name + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
 
         embed = discord.Embed(title="Valoball Queue", description=queue_string,colour=0x00f549)
         self.bot.queueMessage = await interaction.channel.send(embed=embed)
+        await interaction.response.defer()
     
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -151,9 +154,27 @@ class RegistrationMenu(discord.ui.View):
             print(iterCounter)
             print(maxRange, maxTeamElo, minTeamElo, "\n")
         print(teams)
-            
-                
 
+        self.bot.teams = teams
+            
+        teamsMessage = ""
+        teamNum = 0
+        for team in teams:
+            teamNum += 1
+            teamsMessage = teamsMessage + "Team " + str(teamNum) + ": " + str(int(getTeamAverage(team))) + " Elo\n"
+            for player in team:
+                teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
+            teamsMessage = teamsMessage + "\n"
+        embed = discord.Embed(title="Valoball Teams", description=teamsMessage,colour=0x00f549)
+        self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Report Score", style=discord.ButtonStyle.blurple, custom_id="Report Score Button")
+    async def score_report_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print("Testing new button")
+        
+
+        await interaction.response.defer()
 
 def getTeamAverage(team):
     totalElo = 0
@@ -162,8 +183,8 @@ def getTeamAverage(team):
     return(totalElo / len(team))
 
 def get_rank(ranks, player):
-    print(ranks)
-    print(player)
+    # print(ranks)
+    # print(player)
     ranges = list(ranks.values())
     ind = 0
     for range in ranges:
