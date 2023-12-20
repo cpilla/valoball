@@ -90,6 +90,7 @@ class RegistrationMenu(discord.ui.View):
     
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        
         # if interaction.user.name not in self.bot.queue:
         #     self.bot.queue.append(interaction.user.name)
         #     await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
@@ -166,7 +167,12 @@ class RegistrationMenu(discord.ui.View):
                 teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
             teamsMessage = teamsMessage + "\n"
         embed = discord.Embed(title="Valoball Teams", description=teamsMessage,colour=0x00f549)
-        self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
+        
+        if self.bot.TeamsMessage == None:
+            self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
+        else:
+            await interaction.channel.last_message.delete()
+            self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
         await interaction.response.defer()
 
     @discord.ui.button(label="Report Score", style=discord.ButtonStyle.blurple, custom_id="Report Score Button")
