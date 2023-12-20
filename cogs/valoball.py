@@ -11,6 +11,7 @@ class Valoball(commands.Cog):
         bot.regMessage = None
         bot.queueMessage = None
         bot.TeamsMessage = None
+        bot.TeamsMessageId = None
         bot.queue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
                      "Bronze1:1185387900532170815": range(100, 129), "Bronze2:1185387901312315462": range(130, 160), "Bronze3:1185387902063095848": range(161, 199),
@@ -90,7 +91,7 @@ class RegistrationMenu(discord.ui.View):
     
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        
+
         # if interaction.user.name not in self.bot.queue:
         #     self.bot.queue.append(interaction.user.name)
         #     await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
@@ -170,9 +171,14 @@ class RegistrationMenu(discord.ui.View):
         
         if self.bot.TeamsMessage == None:
             self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
+            self.bot.TeamsMessageId = self.bot.TeamsMessage.id
+            # print(self.bot.TeamsMessage.id)
+            # print(teamsMessage)
         else:
-            await interaction.channel.last_message.delete()
+            message = await interaction.channel.fetch_message(self.bot.TeamsMessageId)
+            await message.delete()
             self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
+            self.bot.TeamsMessageId = self.bot.TeamsMessage.id
         await interaction.response.defer()
 
     @discord.ui.button(label="Report Score", style=discord.ButtonStyle.blurple, custom_id="Report Score Button")
