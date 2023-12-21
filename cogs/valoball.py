@@ -12,6 +12,8 @@ class Valoball(commands.Cog):
         bot.queueMessage = None
         bot.TeamsMessage = None
         bot.TeamsMessageId = None
+        bot.leaderboardMessage = None
+        bot.leaderboardMessageId = None
         bot.queue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
                      "Bronze1:1185387900532170815": range(100, 129), "Bronze2:1185387901312315462": range(130, 160), "Bronze3:1185387902063095848": range(161, 199),
@@ -111,7 +113,7 @@ class RegistrationMenu(discord.ui.View):
                       {"id": 10, "name": "Isaiah", "wins": 0, "losses": 0, "elo": 256}, 
                       {"id": 11, "name": "Kev", "wins": 0, "losses": 0, "elo": 226}, 
                       {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
-                      {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166},]
+                      {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}]
 
         # numTeams = len(self.bot.queue) // 3  # Prioritize 3-player teams
         numTeams = len(QUEUE_TEST) // 3  # Prioritize 3-player teams
@@ -167,7 +169,7 @@ class RegistrationMenu(discord.ui.View):
             for player in team:
                 teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
             teamsMessage = teamsMessage + "\n"
-        embed = discord.Embed(title="Valoball Teams", description=teamsMessage,colour=0x00f549)
+        embed = discord.Embed(title="Valoball Teams", description=teamsMessage,colour=0x00a2ed)
         
         if self.bot.TeamsMessage == None:
             self.bot.TeamsMessage = await interaction.channel.send(embed=embed)
@@ -185,6 +187,37 @@ class RegistrationMenu(discord.ui.View):
     async def score_report_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         print("Testing new button")
         
+
+        await interaction.response.defer()
+    
+    @discord.ui.button(label="Leaderboard", style=discord.ButtonStyle.blurple, custom_id="Leaderboard Button")
+    async def leaderboard_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print("Testing new button")
+        leaderboardMessage = ""
+
+        # Loading players from json file
+        with open("leaderboard.json", 'r') as file:
+            all_players = json.load(file)
+        # print(all_players)
+
+        # Sorting player list
+        all_players = sorted(all_players, key = lambda x: x['elo'], reverse = True) # Reverse = True to put it in descending order
+
+        # Crafting message embed
+        for player in all_players:
+            leaderboardMessage = leaderboardMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
+        leaderboardMessage = leaderboardMessage + "\n"
+        embed = discord.Embed(title="Valoball Leaderboard", description=leaderboardMessage,colour=0xffc0cb)
+
+        # Sending message embed
+        if self.bot.leaderboardMessage == None: # Checking if a message has already been sent in this session
+            self.bot.leaderboardMessage = await interaction.channel.send(embed=embed)
+            self.bot.leaderboardMessageId = self.bot.leaderboardMessage.id
+        else:
+            message = await interaction.channel.fetch_message(self.bot.leaderboardMessageId)    # Fetching last sent leaderboard message embed
+            await message.delete()  # Deleting last sent leaderboard message embed
+            self.bot.leaderboardMessage = await interaction.channel.send(embed=embed)
+            self.bot.leaderboardMessageId = self.bot.leaderboardMessage.id
 
         await interaction.response.defer()
 
