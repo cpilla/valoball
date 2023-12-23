@@ -1,3 +1,4 @@
+from typing import Optional
 from discord.ext import commands
 import discord
 from datetime import datetime, timedelta, timezone
@@ -14,7 +15,9 @@ class Valoball(commands.Cog):
         bot.TeamsMessageId = None
         bot.leaderboardMessage = None
         bot.leaderboardMessageId = None
-        bot.queue = []
+        bot.queue = ["Chin", "Cam", "Sohan", "Isabelle"] # Hardcoded start for queue for testing duo/trio queue
+        # bot.queue = [] # Comment for testing
+        bot.duoTrioQueue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
                      "Bronze1:1185387900532170815": range(100, 129), "Bronze2:1185387901312315462": range(130, 160), "Bronze3:1185387902063095848": range(161, 199),
                      "Silver1:1185387919666577529": range(200, 229), "Silver2:1185387982967025835": range(230, 260), "Silver3:1185387984586022932": range(261, 299),
@@ -67,6 +70,32 @@ class RegistrationMenu(discord.ui.View):
             await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
         else:
             await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+
+    @discord.ui.button(label="Duo/Trio Queue", style=discord.ButtonStyle.blurple, custom_id="Duo/Trio Queue Button")
+    async def duo_trio_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print("Duo/Trio Queue Button Pressed")
+        if interaction.user.name not in self.bot.queue: # If player is not in queue yet
+            await interaction.response.send_message(f"Please join the queue for volleyball first before doing this!", ephemeral=True)
+        else:   # If player is in queue
+            # Add selector menu for their duo/trio
+
+            # Adding a view to hold the selector menu
+            # view = discord.ui.View()
+
+            # selectorOptions = []
+            # for player in self.bot.queue:
+            #     playerOption = discord.SelectOption(label = player) # description= str(player["elo"]))
+            #     selectorOptions.append(playerOption)
+            # select = discord.ui.select(
+            #     custom_id="duoTrioQueue",
+            #     placeholder="Choose who you want to queue with!",
+            #     min_values=1,
+            #     max_values=2,
+            #     options=selectorOptions)
+            # view.add_item(select)
+
+            await interaction.response.send_message("Please select who you want to queue with!", view=SelectorView(bot=self.bot, interaction=interaction))
+            await interaction.response.defer()
         
     @discord.ui.button(label="Exit Queue", style=discord.ButtonStyle.red, custom_id="Exit Queue Button")
     async def exit_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -220,6 +249,28 @@ class RegistrationMenu(discord.ui.View):
             self.bot.leaderboardMessageId = self.bot.leaderboardMessage.id
 
         await interaction.response.defer()
+
+class Selector(discord.ui.Select):
+    def __init__(self, interaction: discord.Interaction, bot):
+        selectorOptions = []
+        for player in bot.queue:
+            if (player == interaction.user.name):
+                # Don't add if player is the person selecting queues
+                break
+            else:
+                playerOption = discord.SelectOption(label = player) # description= str(player["elo"]))
+            selectorOptions.append(playerOption)
+        print(selectorOptions)
+        super().__init__(placeholder="Please choose up to two players to queue with!", min_values=1, max_values=2, options=selectorOptions)
+
+        # async def callback(self, interaction: discord.Interaction):
+            # for player in self.values:
+
+
+class SelectorView(discord.ui.View):
+    def __init__(self, bot, interaction: discord.Interaction, *, timeout: float | None = 180):
+        super().__init__(timeout=timeout)
+        self.add_item(Selector(bot=bot, interaction=interaction))
 
 def getTeamAverage(team):
     totalElo = 0
