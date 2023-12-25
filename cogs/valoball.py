@@ -15,7 +15,19 @@ class Valoball(commands.Cog):
         bot.TeamsMessageId = None
         bot.leaderboardMessage = None
         bot.leaderboardMessageId = None
-        bot.queue = ["Chin", "Cam", "Sohan", "Isabelle"] # Hardcoded start for queue for testing duo/trio queue
+        bot.queue = [{"id": 1, "name": "Tommy", "wins": 0, "losses": 0, "elo": 1561}, 
+                      {"id": 2, "name": "Cam", "wins": 0, "losses": 0, "elo": 973}, 
+                      {"id": 3, "name": "Manny", "wins": 0, "losses": 0, "elo": 916}, 
+                      {"id": 4, "name": "Massy", "wins": 0, "losses": 0, "elo": 812}, 
+                      {"id": 5, "name": "Isabelle", "wins": 0, "losses": 0, "elo": 787}, 
+                      {"id": 6, "name": "Eddy", "wins": 0, "losses": 0, "elo": 723}, 
+                      {"id": 7, "name": "Sohan", "wins": 0, "losses": 0, "elo": 482}, 
+                      {"id": 8, "name": "JR", "wins": 0, "losses": 0, "elo": 463}, 
+                      {"id": 9, "name": "Kyaw", "wins": 0, "losses": 0, "elo": 431}, 
+                      {"id": 10, "name": "Isaiah", "wins": 0, "losses": 0, "elo": 256}, 
+                      {"id": 11, "name": "Kev", "wins": 0, "losses": 0, "elo": 226}, 
+                      {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
+                      {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}] # Hardcoded start for queue for testing duo/trio queue
         # bot.queue = [] # Comment for testing
         bot.duoTrioQueue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
@@ -65,37 +77,41 @@ class RegistrationMenu(discord.ui.View):
             f.write(updatedJSON)
             f.close()
         
-        if interaction.user.name not in self.bot.queue:
-            self.bot.queue.append(interaction.user.name)
+        alreadyInQueueFlag = 0
+        for player in self.bot.queue:
+            if interaction.user.id == player["id"]:
+                alreadyInQueueFlag = 1
+                break
+        if (alreadyInQueueFlag == 0):
+            # Place player in queue
+            leaderboard = json.load(open("leaderboard.json"))
+            for player in leaderboard:
+                if interaction.user.id == player["id"]:
+                    playerToQueue = player
+            self.bot.queue.append(playerToQueue)
             await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
         else:
             await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
 
+        # if interaction.user.name not in self.bot.queue:
+        #     self.bot.queue.append(interaction.user.name)
+        #     await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
+        # else:
+        #     await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+
     @discord.ui.button(label="Duo/Trio Queue", style=discord.ButtonStyle.blurple, custom_id="Duo/Trio Queue Button")
     async def duo_trio_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         print("Duo/Trio Queue Button Pressed")
-        if interaction.user.name not in self.bot.queue: # If player is not in queue yet
+          
+        if findDictInList(self.bot.queue, "id", interaction.user.id) == None: # If player is not in queue yet
             await interaction.response.send_message(f"Please join the queue for volleyball first before doing this!", ephemeral=True)
         else:   # If player is in queue
             # Add selector menu for their duo/trio
 
-            # Adding a view to hold the selector menu
-            # view = discord.ui.View()
-
-            # selectorOptions = []
-            # for player in self.bot.queue:
-            #     playerOption = discord.SelectOption(label = player) # description= str(player["elo"]))
-            #     selectorOptions.append(playerOption)
-            # select = discord.ui.select(
-            #     custom_id="duoTrioQueue",
-            #     placeholder="Choose who you want to queue with!",
-            #     min_values=1,
-            #     max_values=2,
-            #     options=selectorOptions)
-            # view.add_item(select)
-
             await interaction.response.send_message("Please select who you want to queue with!", view=SelectorView(bot=self.bot, interaction=interaction))
-            await interaction.response.defer()
+
+        # await interaction.response.defer()
+        
         
     @discord.ui.button(label="Exit Queue", style=discord.ButtonStyle.red, custom_id="Exit Queue Button")
     async def exit_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -108,13 +124,11 @@ class RegistrationMenu(discord.ui.View):
     @discord.ui.button(label="View Queue", style=discord.ButtonStyle.blurple, custom_id="View Queue Button")
     async def view_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         queue_string = ""
-        leaderboard = json.load(open("leaderboard.json"))
-        print(leaderboard)
-        for player_name in self.bot.queue:
-            print(player_name)
-            for player in leaderboard:
-                if player["name"] == player_name:
-                    queue_string = queue_string + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player_name + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
+        # leaderboard = json.load(open("leaderboard.json"))
+        # print(leaderboard)
+        for player in self.bot.queue:
+            # print(player)
+            queue_string = queue_string + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round(player["wins"] / max(1, (player["wins"] + player["losses"])), 2)) + "%\n"
 
         embed = discord.Embed(title="Valoball Queue", description=queue_string,colour=0x00f549)
         self.bot.queueMessage = await interaction.channel.send(embed=embed)
@@ -123,36 +137,14 @@ class RegistrationMenu(discord.ui.View):
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        # if interaction.user.name not in self.bot.queue:
-        #     self.bot.queue.append(interaction.user.name)
-        #     await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
-        # else:
-        #     await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+        # print(self.bot.duoTrioQueue)
 
-        # Queue used for testing, anywhere QUEUE_TEST is, change to actual self.bot.queue for actual implementation
-        QUEUE_TEST = [{"id": 1, "name": "Tommy", "wins": 0, "losses": 0, "elo": 1561}, 
-                      {"id": 2, "name": "Cam", "wins": 0, "losses": 0, "elo": 973}, 
-                      {"id": 3, "name": "Manny", "wins": 0, "losses": 0, "elo": 916}, 
-                      {"id": 4, "name": "Massy", "wins": 0, "losses": 0, "elo": 812}, 
-                      {"id": 5, "name": "Isabelle", "wins": 0, "losses": 0, "elo": 787}, 
-                      {"id": 6, "name": "Eddy", "wins": 0, "losses": 0, "elo": 723}, 
-                      {"id": 7, "name": "Sohan", "wins": 0, "losses": 0, "elo": 482}, 
-                      {"id": 8, "name": "JR", "wins": 0, "losses": 0, "elo": 463}, 
-                      {"id": 9, "name": "Kyaw", "wins": 0, "losses": 0, "elo": 431}, 
-                      {"id": 10, "name": "Isaiah", "wins": 0, "losses": 0, "elo": 256}, 
-                      {"id": 11, "name": "Kev", "wins": 0, "losses": 0, "elo": 226}, 
-                      {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
-                      {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}]
-
-        # numTeams = len(self.bot.queue) // 3  # Prioritize 3-player teams
-        numTeams = len(QUEUE_TEST) // 3  # Prioritize 3-player teams
+        numTeams = len(self.bot.queue) // 3  # Prioritize 3-player teams
         totalElo = 0
         eloRange = 50
-        # for player in self.bot.queue:
-        for player in QUEUE_TEST:
+        for player in self.bot.queue:
             totalElo += player["elo"]
-        # avgElo = totalElo / len(self.bot.queue) # Average Elo of all players in queue
-        avgElo = totalElo / len(QUEUE_TEST) # Average Elo of all players in queue
+        avgElo = totalElo / len(self.bot.queue) # Average Elo of all players in queue
         
         # While average team elos aren't in range, increase range every 5-10 iterartions
         iterCounter = 0
@@ -161,19 +153,39 @@ class RegistrationMenu(discord.ui.View):
             minTeamElo = avgElo
             maxTeamElo = avgElo
             teams = [ [] for x in range(numTeams)]
-            # remainingPlayers = self.bot.queue.copy()
-            remainingPlayers = QUEUE_TEST.copy()
-            # teamsOf4 = len(self.bot.queue) % 3
-            teamsOf4 = len(QUEUE_TEST) % 3
+            remainingPlayers = self.bot.queue.copy()
+            teamsOf4 = len(self.bot.queue) % 3
             for team in range(numTeams):    # Loop for each team
                 playersPerTeam = 3
                 if (teamsOf4 > 0):  # Checking if the team needs 4 players or 3
                     playersPerTeam = 4
                     teamsOf4 = teamsOf4 - 1
-                for player in range(playersPerTeam):    # Loop for each player in the team
+                player = 0
+                while (player < playersPerTeam):    # Loop for each player in the team
+                    # print(player)
                     playerNum = int(random() * len(remainingPlayers))   # Choosing random number for index of remaining players
-                    teams[team].append(remainingPlayers[playerNum])  # Add random player to team
-                    remainingPlayers.pop(playerNum) # Remove player from available players list
+                    ### New Functionality for Duo and Trio Queue
+                    # if (remainingPlayers[playerNum] in self.bot.duoTrioQueue):
+                    queuePlayerFlag = 0
+                    for queues in self.bot.duoTrioQueue:
+                        # print(str(len(remainingPlayers)) + " : " + str(playerNum))
+                        if (len(remainingPlayers) > 0):
+                            if (findDictInList(queues, "id", remainingPlayers[playerNum]["id"]) != None):
+                                # print("Hit new if statement\n")
+                                queuePlayerFlag = 1
+                                # print(len(queues))
+                                if (playersPerTeam - player >= len(queues)):
+                                    for playerInQueue in queues:
+                                        indexToPop = remainingPlayers.index(playerInQueue)
+                                        teams[team].append(remainingPlayers[indexToPop])
+                                        # print(remainingPlayers[indexToPop])
+                                        remainingPlayers.pop(indexToPop)
+                                        player += 1
+                    if (queuePlayerFlag == 0 and len(remainingPlayers) > 0):
+                        teams[team].append(remainingPlayers[playerNum])  # Add random player to team
+                        remainingPlayers.pop(playerNum) # Remove player from available players list
+                        player += 1
+                    # print(len(remainingPlayers))
                 # teams.append(team)  # Add team to list of teams
                 teamElo = getTeamAverage(teams[team])  # Get the average elo for the team
                 if (teamElo < minTeamElo):  # Check for min
@@ -184,9 +196,9 @@ class RegistrationMenu(discord.ui.View):
             iterCounter += 1
             if (iterCounter % 10 == 0): # Every ten iterations
                 eloRange += 50  # Increase range by 50
-            print(iterCounter)
-            print(maxRange, maxTeamElo, minTeamElo, "\n")
-        print(teams)
+            # print(iterCounter)
+            # print(maxRange, maxTeamElo, minTeamElo, "\n")
+        # print(teams)
 
         self.bot.teams = teams
             
@@ -227,7 +239,6 @@ class RegistrationMenu(discord.ui.View):
         # Loading players from json file
         with open("leaderboard.json", 'r') as file:
             all_players = json.load(file)
-        # print(all_players)
 
         # Sorting player list
         all_players = sorted(all_players, key = lambda x: x['elo'], reverse = True) # Reverse = True to put it in descending order
@@ -252,25 +263,38 @@ class RegistrationMenu(discord.ui.View):
 
 class Selector(discord.ui.Select):
     def __init__(self, interaction: discord.Interaction, bot):
+        self.bot = bot
         selectorOptions = []
         for player in bot.queue:
-            if (player == interaction.user.name):
+            if (player["id"] == interaction.user.id) or (player in bot.duoTrioQueue):
                 # Don't add if player is the person selecting queues
                 break
             else:
-                playerOption = discord.SelectOption(label = player) # description= str(player["elo"]))
+                playerOption = discord.SelectOption(label = player["name"], value = player["id"], description = player["elo"]) # description= str(player["elo"]))
             selectorOptions.append(playerOption)
-        print(selectorOptions)
         super().__init__(placeholder="Please choose up to two players to queue with!", min_values=1, max_values=2, options=selectorOptions)
 
-        # async def callback(self, interaction: discord.Interaction):
-            # for player in self.values:
+    async def callback(self, interaction: discord.Interaction):
+        queue = []
+        for player in self.values:
+            queue.append(findDictInList(self.bot.queue, "id", int(player)))
+        queue.append(findDictInList(self.bot.queue, "id", interaction.user.id))
 
+        valoballInstance = self.bot.get_cog("Valoball")
+        valoballInstance.bot.duoTrioQueue.append(queue)
+
+        await interaction.response.defer()  
 
 class SelectorView(discord.ui.View):
     def __init__(self, bot, interaction: discord.Interaction, *, timeout: float | None = 180):
         super().__init__(timeout=timeout)
         self.add_item(Selector(bot=bot, interaction=interaction))
+
+def findDictInList(lst, key, value):
+    for item in lst:
+        if key in item and item[key] == value:
+            return item
+    return None
 
 def getTeamAverage(team):
     totalElo = 0
