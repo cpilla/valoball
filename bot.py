@@ -9,6 +9,7 @@ class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='>>', intents=discord.Intents.all())
         self.initial_extensions = ["cogs.utils", "cogs.valoball"]
+        self.spawn_message = None
     async def setup_hook(self):
         print(f"Logging in as: {self.user}")
         for ext in self.initial_extensions:
@@ -27,7 +28,7 @@ async def test(interaction: discord.Interaction, to_say: str, number: int):
     await interaction.response.send_message(f"{to_say} + {number}")
 
 load_dotenv()
-# botKey = os.getenv("MTE3MDg4MTI1MjgzNzA0ODUxMw.GwFgEf.H5FSsy9K3Hi1I67mK1NG2yY7mC2h7t_qc5y2Hc")
+# botKey = os.getenv("KEY")
 # print(botKey)
 # bot.run(botKey)
-bot.run("MTE3MDg4MTI1MjgzNzA0ODUxMw.GwFgEf.H5FSsy9K3Hi1I67mK1NG2yY7mC2h7t_qc5y2Hc")
+bot.run("KEY")
