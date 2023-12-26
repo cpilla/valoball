@@ -1,13 +1,1 @@
-[{"id": 1, "name": "Tommy", "wins": 0, "losses": 0, "elo": 1561}, 
-    {"id": 2, "name": "Cam", "wins": 0, "losses": 0, "elo": 973}, 
-    {"id": 3, "name": "Manny", "wins": 0, "losses": 0, "elo": 916}, 
-    {"id": 4, "name": "Massy", "wins": 0, "losses": 0, "elo": 812}, 
-    {"id": 5, "name": "Isabelle", "wins": 0, "losses": 0, "elo": 787}, 
-    {"id": 6, "name": "Eddy", "wins": 0, "losses": 0, "elo": 723}, 
-    {"id": 7, "name": "Sohan", "wins": 0, "losses": 0, "elo": 482}, 
-    {"id": 8, "name": "JR", "wins": 0, "losses": 0, "elo": 463}, 
-    {"id": 9, "name": "Kyaw", "wins": 0, "losses": 0, "elo": 431}, 
-    {"id": 10, "name": "Isaiah", "wins": 0, "losses": 0, "elo": 256}, 
-    {"id": 11, "name": "Kev", "wins": 0, "losses": 0, "elo": 226}, 
-    {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
-    {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}]
+[{"id": 249493223505803058, "name": "Tommy", "wins": 4, "losses": 5, "elo": 1798}, {"id": 141605251791317960, "name": "Cam", "wins": 4, "losses": 2, "elo": 969}, {"id": 999384995746223147, "name": "Manny", "wins": 4, "losses": 3, "elo": 1125}, {"id": 631246236884898180, "name": "Massy", "wins": 1, "losses": 4, "elo": 936}, {"id": 233323458865648233, "name": "Isabelle", "wins": 3, "losses": 3, "elo": 1077}, {"id": 784077283235569329, "name": "Eddy", "wins": 3, "losses": 4, "elo": 1459}, {"id": 616700490878458221, "name": "Sohan", "wins": 4, "losses": 4, "elo": 687}, {"id": 259416812576521706, "name": "JR", "wins": 6, "losses": 2, "elo": 1204}, {"id": 551307948139589012, "name": "Kyaw", "wins": 7, "losses": 3, "elo": 1298}]
