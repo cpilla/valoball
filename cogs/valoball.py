@@ -254,6 +254,7 @@ class RegistrationMenu(discord.ui.View):
         num_games = len(self.bot.teams) // 2
         self.bot.game_scores = []
         self.bot.games_embeds = []
+        self.bot.matchups = []
         teamsMessage = ""
         for game in range(0, num_games):
             self.bot.game_scores.append([0,0])
@@ -314,6 +315,7 @@ class RegistrationMenu(discord.ui.View):
     @discord.ui.button(label="Finalize Scores", style=discord.ButtonStyle.blurple, custom_id="Finalize Scores Button")
     async def score_report_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         print(self.bot.game_scores)
+        print(self.bot.matchups)
         for i in range(len(self.bot.matchups)):
             #Calculate Elo Changes For Each Player
             #Update player stats and team stats
@@ -322,7 +324,12 @@ class RegistrationMenu(discord.ui.View):
             team2 = self.bot.teams[self.bot.matchups[i][1]]
             score2 = self.bot.game_scores[i][1]
             update_stats([team1,team2], [score1,score2], self.bot)
+            self.bot.teams = refresh_teams(self.bot)
+            team1 = self.bot.teams[self.bot.matchups[i][0]]
+            team2 = self.bot.teams[self.bot.matchups[i][1]]
             #Update Embeds To Display Elo Changes and Winners/Losers
+            await update_embed([team1,team2], self.bot, i)
+            
             #Wait 30 Seconds
             #Determine New Matchups
             #Update Embeds and data structures to reflect new matchups.
@@ -552,6 +559,7 @@ def update_players_stats(team, elo, result, bot):
         json.dump(team_data, f)
     bot.team_data = team_data
     bot.data = data
+    temp = []
 
 def get_total_team_elo(team):
     total = 0
@@ -559,6 +567,28 @@ def get_total_team_elo(team):
         total = total + player["elo"]
     return total
    
+async def update_embed(teams, bot, num):
+    with open('teams.json', 'r') as f:
+        team_data = json.load(f)
+    original_message = bot.games_messages[num]
+    teamsMessage = ""
+    for team in teams:
+        team_id = get_team_id(team)
+        teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+        for player in team:
+            teamsMessage = teamsMessage + "<:" + get_rank(bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round((player["wins"] / max(1, (player["wins"] + player["losses"])) * 100), 2)) + "%\n"
+        teamsMessage = teamsMessage + "\n"
+    new_embed = discord.Embed(title=f"Game {num + 1}", description=teamsMessage,colour=0x00a2ed)
+    original_message = await original_message.edit(embed = new_embed)
+
+def refresh_teams(bot):
+    with open('teams.json', 'r') as f:
+        team_data = json.load(f)
+    temp = []
+    for team in bot.teams:
+        team_id = get_team_id(team)
+        temp.append(team_data[team_id]["players"])
+    return temp
 
 async def setup(bot):
     await bot.add_cog(Valoball(bot))
