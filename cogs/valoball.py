@@ -98,7 +98,13 @@ class RegistrationMenu(discord.ui.View):
                 foundFlag = 1
                 break
         if foundFlag == 0:                              # Player is not in leaderboard
-            newPlayer = {"id": interaction.user.id, "name": interaction.user.name, "wins": 0, "losses": 0, "elo": 350}
+
+            nickNameView = NicknameModal(bot=self.bot)
+            await interaction.response.send_modal(nickNameView)
+            await nickNameView.wait()
+            nickname = nickNameView.children[0].value
+
+            newPlayer = {"id": interaction.user.id, "name": nickname, "wins": 0, "losses": 0, "elo": 350}
             leaderboard.append(newPlayer)
             with open("leaderboard.json", "w") as f:
                 json.dump(leaderboard, f)
@@ -122,7 +128,8 @@ class RegistrationMenu(discord.ui.View):
                 if interaction.user.id == player["id"]:
                     playerToQueue = player
             self.bot.queue.append(playerToQueue)
-            await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
+            if (foundFlag == 1):
+                await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
         else:
             await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
 
@@ -134,8 +141,7 @@ class RegistrationMenu(discord.ui.View):
 
     @discord.ui.button(label="Duo/Trio Queue", style=discord.ButtonStyle.blurple, custom_id="Duo/Trio Queue Button")
     async def duo_trio_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        print("Duo/Trio Queue Button Pressed")
-        
+                
         numTeams = len(self.bot.queue) // 3
         numQueues = len(self.bot.duoTrioQueue)
 
@@ -300,7 +306,9 @@ class RegistrationMenu(discord.ui.View):
             self.bot.games_messages.append(await interaction.channel.send(embed=embed, view=view))
             self.bot.games_embeds.append(embed)
         teamsMessage = ""
-        if num_games % 2 != 0: #If there is an odd number of teams, print the one that is on deck
+        # print(num_games)
+        if len(self.bot.teams) % 2 != 0: #If there is an odd number of teams, print the one that is on deck
+            # print("This got hit")
             teamsMessage = ""
             team = self.bot.teams[len(self.bot.teams) - 1]
             team_id = get_team_id(team)
@@ -479,7 +487,16 @@ class Score_Report_Button(discord.ui.View):
         await modal.wait()
         self.bot.game_scores[self.game] = [modal.children[0].value, modal.children[1].value]
 
+class NicknameModal(ui.Modal):
+    def __init__(self, bot):
+        super().__init__(title="Nickname")
+        self.bot = bot
 
+        newName = ui.TextInput(label='Enter your name', required=True, max_length=25, min_length=1)
+        self.add_item(newName)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message("Successfully registered!", ephemeral = True)
 
 class Score_Report(ui.Modal):
     def __init__(self, teams, bot, game):
@@ -500,17 +517,21 @@ class Selector(discord.ui.Select):
         self.bot = bot
         selectorOptions = []
         for player in bot.queue:
-            if (player["id"] == interaction.user.id):
+            # print(player["name"])
+            if (player["id"] != interaction.user.id):
                 # Don't add if player is the person selecting queues
-                break
-            else:
+                # print("Hit User ID")
+                # break
                 foundFlag = 0
                 for queues in bot.duoTrioQueue:
                     if (findDictInList(queues, "id", player["id"]) != None):
                         foundFlag = 1
+                        print("Hit Found Flag")
+                        # print(player["name"])
                         break
                 if (foundFlag == 0):
-                    playerOption = discord.SelectOption(label = player["name"], value = player["id"], description = player["elo"]) # description= str(player["elo"]))
+                    # print(player["name"])
+                    playerOption = discord.SelectOption(label = player["name"], value = player["id"], description = str(player["elo"]), emoji=("<:" + get_rank(self.bot.ranks, player) + ">")) # description= str(player["elo"]))
                     selectorOptions.append(playerOption)
         super().__init__(placeholder="Please choose up to two players to queue with!", min_values=1, max_values=2, options=selectorOptions)
 
