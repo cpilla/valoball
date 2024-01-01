@@ -7,6 +7,7 @@ from random import random
 import asyncio
 from discord import ui
 from discord.interactions import Interaction
+import numpy as np
 
 class Valoball(commands.Cog):
     def __init__(self, bot):
@@ -40,15 +41,15 @@ class Valoball(commands.Cog):
             bot.queue = json.load(f)
         # bot.queue = [] # Comment for testing
         bot.duoTrioQueue = []
-        bot.ranks = {"Iron1:1185388187074433074": range(0, 29), "Iron2:1185388187946856448": range(30, 60), "Iron3:1185388189138042990": range(61, 99),
-                     "Bronze1:1185387900532170815": range(100, 129), "Bronze2:1185387901312315462": range(130, 160), "Bronze3:1185387902063095848": range(161, 199),
-                     "Silver1:1185387919666577529": range(200, 229), "Silver2:1185387982967025835": range(230, 260), "Silver3:1185387984586022932": range(261, 299),
-                     "Gold1:1185387905036857465": range(300, 329), "Gold2:1185388088671879289": range(330, 360), "Gold3:1185388089649152060": range(361, 399),
-                     "Plat1:1185387911735148564": range(400, 429), "Plat2:1185388022238281749": range(430, 460), "Plat3:1185387916093050971": range(461, 499),
-                     "Diamond1:1185387903212331059": range(500, 529), "Diamond2:1185388086339846254": range(530, 560), "Diamond3:1185388087300325417": range(561, 599),
-                     "Ascendant1:1185387897705205910": range(600, 629), "Ascendant2:1185387898493747230": range(630, 660), "Ascendant3:1185387899659759656": range(661, 699),
-                     "Immortal1:1185388051661336627": range(700, 729), "Immortal2:1185387909008867400": range(730, 760), "Immortal3:1185388052588265502": range(761, 799),
-                     "Radiant:1185388311334895646": range(800, 10000)}
+        bot.ranks = {"Iron1:1185388187074433074": range(0, 59), "Iron2:1185388187946856448": range(60, 119), "Iron3:1185388189138042990": range(120, 179),
+                     "Bronze1:1185387900532170815": range(180, 239), "Bronze2:1185387901312315462": range(240, 299), "Bronze3:1185387902063095848": range(300, 359),
+                     "Silver1:1185387919666577529": range(360, 419), "Silver2:1185387982967025835": range(420, 479), "Silver3:1185387984586022932": range(480, 539),
+                     "Gold1:1185387905036857465": range(540, 599), "Gold2:1185388088671879289": range(600, 659), "Gold3:1185388089649152060": range(660, 719),
+                     "Plat1:1185387911735148564": range(720, 779), "Plat2:1185388022238281749": range(780, 839), "Plat3:1185387916093050971": range(840, 899),
+                     "Diamond1:1185387903212331059": range(900, 959), "Diamond2:1185388086339846254": range(960, 1019), "Diamond3:1185388087300325417": range(1020, 1079),
+                     "Ascendant1:1185387897705205910": range(1080, 1139), "Ascendant2:1185387898493747230": range(1140, 1199), "Ascendant3:1185387899659759656": range(1200, 1259),
+                     "Immortal1:1185388051661336627": range(1260, 1339), "Immortal2:1185387909008867400": range(1340, 1419), "Immortal3:1185388052588265502": range(1420, 1499),
+                     "Radiant:1185388311334895646": range(1500, 10000)}
         bot.game_scores = []
         
     async def after_ready(self):
@@ -273,7 +274,7 @@ class RegistrationMenu(discord.ui.View):
         for team in self.bot.teams:
             team_id = get_team_id(team)
             if team_data.get(team_id) == None: #If this team has never played a game together before
-                team_data[team_id] = {"players": team, "wins": 0, "losses": 0, "team_name": generate_team_name(team_id)} #Add them to the teams list and write it to the file
+                team_data[team_id] = {"players": [p_id["id"] for p_id in team], "wins": 0, "losses": 0, "team_name": generate_team_name(team_id)} #Add them to the teams list and write it to the file
                 with open('teams.json', 'w') as f:
                     json.dump(team_data, f)
 
@@ -361,7 +362,12 @@ class RegistrationMenu(discord.ui.View):
                 match_results.append([self.bot.matchups[i][0], self.bot.matchups[i][1]])
             else:
                 match_results.append([self.bot.matchups[i][1], self.bot.matchups[i][0]])
-            update_stats([team1,team2], [score1,score2], self.bot)
+            with open("score_history.json", 'r') as f:
+                score_data = json.load(f)
+            score_data.append(abs(score1 - score2))
+            with open("score_history.json", 'w') as f:
+                json.dump(score_data, f)
+            update_stats([team1,team2], [score1,score2], self.bot, score_data)
             self.bot.teams = refresh_teams(self.bot)
             team1 = self.bot.teams[self.bot.matchups[i][0]]
             team2 = self.bot.teams[self.bot.matchups[i][1]]
@@ -393,7 +399,7 @@ class RegistrationMenu(discord.ui.View):
         #print(match_results)
         #Wait 30 Seconds
         await interaction.response.defer()
-        await asyncio.sleep(5)
+        await asyncio.sleep(30)
         #Update Embeds and data structures to reflect new matchups.
         self.bot.matchups = match_results
         with open("teams.json", 'r') as f:
@@ -584,13 +590,17 @@ def generate_team_name(id):
     return "The " + adjectives[int(last4)] + " " + animals[int(next2)] 
 
 def get_team_id(team):
+    print("ID TEAM")
+    print(team)
     id_sum = 0
     for player in team:
         id_sum = id_sum + player["id"]
     return str(id_sum)
 
-def update_stats(teams, score, bot):
+def update_stats(teams, score, bot, score_data):
     k_factor = 420 #The max elo a team should be able to gain/lose in a game
+    score_factor = 1
+    k_factor = k_factor * score_factor
     if score[0] > score[1]:
         win = 0
     else:
@@ -663,6 +673,7 @@ def update_players_stats(team, elo, result, bot):
     with open('leaderboard.json', 'w') as f:
         json.dump(data, f)
     
+    '''
     for entry in team_data[team_id]["players"]:
         if result == 1:
             for player in win_players:
@@ -675,6 +686,7 @@ def update_players_stats(team, elo, result, bot):
             entry["losses"] = entry["losses"] + 1
         with open('teams.json', 'w') as f:
             json.dump(team_data, f)
+    '''
     if result == 1:
         team_data[team_id]["wins"] = team_data[team_id]["wins"] + 1
     else:
@@ -723,12 +735,20 @@ async def update_embed(teams, bot, num, pregame_stats):
     original_message = await original_message.edit(embed = new_embed, view=None)
 
 def refresh_teams(bot):
+    with open('leaderboard.json', 'r') as f:
+        data = json.load(f)
     with open('teams.json', 'r') as f:
         team_data = json.load(f)
     temp = []
     for team in bot.teams:
-        team_id = get_team_id(team)
-        temp.append(team_data[team_id]["players"])
+        temp_team = []
+        for player in team:
+            for target in data:
+                if target["id"] == player["id"]:
+                    temp_team.append(target)
+        temp.append(temp_team)
+        #team_id = get_team_id(team)
+        #temp.append(team_data[team_id]["players"])
     return temp
 
 async def setup(bot):
