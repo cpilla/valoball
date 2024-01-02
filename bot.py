@@ -8,8 +8,9 @@ import discord.ui
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='>>', intents=discord.Intents.all())
-        self.initial_extensions = ["cogs.utils", "cogs.valoball"]
+        self.initial_extensions = ["cogs.utils", "cogs.valoball", "cogs.tournament"]
         self.spawn_message = None
+        self.tournament_message = None
     async def setup_hook(self):
         print(f"Logging in as: {self.user}")
         for ext in self.initial_extensions:

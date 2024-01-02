@@ -13,7 +13,7 @@ class Valoball(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         bot.spawn_message = None
-        bot.teams = None
+        bot.teams = []
         bot.queueMessage = None
         bot.TeamsMessage = None
         bot.TeamsMessageId = None
@@ -271,13 +271,14 @@ class RegistrationMenu(discord.ui.View):
         # print(teams)
                 
         self.bot.teams = teams
+        
         for team in self.bot.teams:
             team_id = get_team_id(team)
             if team_data.get(team_id) == None: #If this team has never played a game together before
                 team_data[team_id] = {"players": [p_id["id"] for p_id in team], "wins": 0, "losses": 0, "team_name": generate_team_name(team_id)} #Add them to the teams list and write it to the file
                 with open('teams.json', 'w') as f:
                     json.dump(team_data, f)
-
+        
         for message in self.bot.games_messages: #Clear all the old games messages
             await message.delete()
         self.bot.games_messages.clear()
@@ -750,6 +751,13 @@ def refresh_teams(bot):
         #team_id = get_team_id(team)
         #temp.append(team_data[team_id]["players"])
     return temp
+
+def get_player_by_id(id):
+    with open('leaderboard.json', 'r') as f:
+        data = json.load(f)
+    for player in data:
+        if player["id"] == id:
+            return player 
 
 async def setup(bot):
     await bot.add_cog(Valoball(bot))
