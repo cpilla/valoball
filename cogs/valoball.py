@@ -37,8 +37,9 @@ class Valoball(commands.Cog):
                       {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
                       {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}] # Hardcoded start for queue for testing duo/trio queue
         '''
-        with open("leaderboard.json", "r") as f:
-            bot.queue = json.load(f)
+        #with open("leaderboard.json", "r") as f:
+        #    bot.queue = json.load(f)
+        bot.queue = []
         # bot.queue = [] # Comment for testing
         bot.duoTrioQueue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 59), "Iron2:1185388187946856448": range(60, 119), "Iron3:1185388189138042990": range(120, 179),
@@ -54,7 +55,7 @@ class Valoball(commands.Cog):
         
     async def after_ready(self):
         await self.bot.wait_until_ready()
-        channel = self.bot.get_channel(993243011326673010)
+        channel = self.bot.get_channel(1193707309956866118)
         embed = discord.Embed(title = "Valoball Test Embed", color = 0xdaaa00)
         view = RegistrationMenu(self.bot)
         if self.bot.spawn_message == None:
@@ -105,7 +106,7 @@ class RegistrationMenu(discord.ui.View):
             await nickNameView.wait()
             nickname = nickNameView.children[0].value
 
-            newPlayer = {"id": interaction.user.id, "name": nickname, "wins": 0, "losses": 0, "elo": 350}
+            newPlayer = {"id": interaction.user.id, "name": nickname, "wins": 0, "losses": 0, "elo": 750}
             leaderboard.append(newPlayer)
             with open("leaderboard.json", "w") as f:
                 json.dump(leaderboard, f)
@@ -185,7 +186,8 @@ class RegistrationMenu(discord.ui.View):
     @discord.ui.button(label="View Queue", style=discord.ButtonStyle.blurple, custom_id="View Queue Button")
     async def view_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         queue_string = ""
-        leaderboard = json.load(open("leaderboard.json"))
+        with open("leaderboard.json", "r") as f:
+            leaderboard = json.load(f)
         # print(leaderboard)
         for player in self.bot.queue:
             # print(player)
@@ -356,9 +358,11 @@ class RegistrationMenu(discord.ui.View):
             #Calculate Elo Changes For Each Player
             #Update player stats and team stats
             team1 = self.bot.teams[self.bot.matchups[i][0]]
-            score1 = self.bot.game_scores[i][0]
+            score1 = int(self.bot.game_scores[i][0])
+            print(score1)
             team2 = self.bot.teams[self.bot.matchups[i][1]]
-            score2 = self.bot.game_scores[i][1]
+            score2 = int(self.bot.game_scores[i][1])
+            print(score2)
             if score1 > score2:
                 match_results.append([self.bot.matchups[i][0], self.bot.matchups[i][1]])
             else:
@@ -647,12 +651,16 @@ def update_players_stats(team, elo, result, bot):
             if entry["id"] == player["id"]:
                 if result == 1:
                     #print(1 - (entry["elo"] / team_elo))
+                    print(entry)
+                    print(1 - (entry["elo"] / team_elo))
                     win_players.append({"id": entry["id"], "factor": 1 - (entry["elo"] / team_elo)})
                     #entry["elo"] = int(entry["elo"] + ((1 - (entry["elo"] / team_elo)) * elo))
                     entry["wins"] = entry["wins"] + 1
                 else:
                     #print(entry)
                     #print(((entry["elo"] / team_elo) * elo))
+                    print(entry)
+                    print((entry["elo"] / team_elo) * elo)
                     entry["elo"] = int(entry["elo"] + ((entry["elo"] / team_elo) * elo))
                     entry["losses"] = entry["losses"] + 1
                 with open('leaderboard.json', 'w') as f:
@@ -670,7 +678,10 @@ def update_players_stats(team, elo, result, bot):
         if result == 1:
             for player in win_players:
                 if player["id"] == entry["id"]:
+                    print(entry)
+                    print(entry["elo"])
                     entry["elo"] = int(entry["elo"] + (player["factor"] / sum_inverse_elos) * elo)
+                    print(entry["elo"])
     with open('leaderboard.json', 'w') as f:
         json.dump(data, f)
     
