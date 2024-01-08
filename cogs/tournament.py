@@ -13,7 +13,7 @@ class Tournament(commands.Cog):
     async def tournament(self, ctx):
         view = Tournament_Select_View(self.bot, self.remaining_players)
         print(self.remaining_players)
-        self.bot.tournament_message = await ctx.channel.send("Menu!", view=view)
+        self.bot.tournament_message = await ctx.channel.send("Select the players for a team!", view=view)
 
 class Tournament_Select(discord.ui.Select):
     def __init__(self, bot, remaining_players):
@@ -54,7 +54,7 @@ class Tournament_Select(discord.ui.Select):
         self.bot.games_messages.append(await interaction.channel.send(embed=embed))
         await self.bot.tournament_message.delete()
 
-        if len(self.remaining_players) < 4:
+        if len(self.remaining_players) <= 4:
             team = []
             for player in self.remaining_players:
                 team.append(player)
@@ -77,8 +77,13 @@ class Tournament_Select(discord.ui.Select):
             self.bot.games_messages.append(await interaction.channel.send(embed=embed))
             await self.bot.tournament_message.delete()
 
+            
+
+            await interaction.response.defer()
+            return
+
         view = Tournament_Select_View(self.bot, self.remaining_players)
-        self.bot.tournament_message = await interaction.channel.send("Menu!", view=view)
+        self.bot.tournament_message = await interaction.channel.send("Select the players for a team!", view=view)
         await interaction.response.defer()
 
 class Tournament_Select_View(discord.ui.View):
