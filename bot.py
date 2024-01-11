@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 import discord.ui
 
@@ -28,8 +28,8 @@ bot = MyBot()
 async def test(interaction: discord.Interaction, to_say: str, number: int):
     await interaction.response.send_message(f"{to_say} + {number}")
 
-load_dotenv()
+#load_dotenv()
 # botKey = os.getenv("KEY")
 # print(botKey)
 # bot.run(botKey)
-bot.run("MTE3MDg4MTI1MjgzNzA0ODUxMw.GIU8bF.OkcW-1uT0jF5sD_WR0iK3nQnem2A2nsldVSqqQ")
+bot.run("KEY")

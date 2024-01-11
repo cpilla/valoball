@@ -7,7 +7,7 @@ from random import random
 import asyncio
 from discord import ui
 from discord.interactions import Interaction
-import numpy as np
+#import numpy as np
 
 class Valoball(commands.Cog):
     def __init__(self, bot):
@@ -37,9 +37,9 @@ class Valoball(commands.Cog):
                       {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
                       {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}] # Hardcoded start for queue for testing duo/trio queue
         '''
-        #with open("leaderboard.json", "r") as f:
-        #    bot.queue = json.load(f)
-        bot.queue = []
+        with open("leaderboard.json", "r") as f:
+            bot.queue = json.load(f)
+        #bot.queue = []
         # bot.queue = [] # Comment for testing
         bot.duoTrioQueue = []
         bot.ranks = {"Iron1:1185388187074433074": range(0, 59), "Iron2:1185388187946856448": range(60, 119), "Iron3:1185388189138042990": range(120, 179),
@@ -55,7 +55,7 @@ class Valoball(commands.Cog):
         
     async def after_ready(self):
         await self.bot.wait_until_ready()
-        channel = self.bot.get_channel(1193707309956866118)
+        channel = self.bot.get_channel(993243011326673010)
         embed = discord.Embed(title = "Valoball Test Embed", color = 0xdaaa00)
         view = RegistrationMenu(self.bot)
         if self.bot.spawn_message == None:
@@ -352,34 +352,183 @@ class RegistrationMenu(discord.ui.View):
     async def score_report_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         #print(self.bot.game_scores)
         #print(self.bot.matchups)
+        with open("leaderboard.json", "r") as f:
+            data = json.load(f)
+        for team in self.bot.teams:
+            for player in team:
+                for entry in data:
+                    if entry["id"] == player["id"]:
+                        player = entry
+        
         pregame_stats = self.bot.teams
         match_results = []
         for i in range(len(self.bot.matchups)):
             #Calculate Elo Changes For Each Player
             #Update player stats and team stats
             team1 = self.bot.teams[self.bot.matchups[i][0]]
-            score1 = int(self.bot.game_scores[i][0])
-            print(score1)
             team2 = self.bot.teams[self.bot.matchups[i][1]]
+            score1 = int(self.bot.game_scores[i][0])
             score2 = int(self.bot.game_scores[i][1])
-            print(score2)
             if score1 > score2:
                 match_results.append([self.bot.matchups[i][0], self.bot.matchups[i][1]])
             else:
                 match_results.append([self.bot.matchups[i][1], self.bot.matchups[i][0]])
+            
             with open("score_history.json", 'r') as f:
                 score_data = json.load(f)
             score_data.append(abs(score1 - score2))
             with open("score_history.json", 'w') as f:
                 json.dump(score_data, f)
-            update_stats([team1,team2], [score1,score2], self.bot, score_data)
-            self.bot.teams = refresh_teams(self.bot)
-            team1 = self.bot.teams[self.bot.matchups[i][0]]
-            team2 = self.bot.teams[self.bot.matchups[i][1]]
+            
+            teamsMessage = ""
+            
+            k_factor = 420
+            exp1 = get_expected([team1, team2])
+            exp2 = 1 - exp1
+            print(team1)
+            print(f"EXPECTED: {exp1}\n")
+            print(team2)
+            print(f"EXPECTED: {exp2}\n")
+            if score1 > score2:
+                with open("teams.json", "r") as f:
+                    team_data = json.load(f)
+                team_data[get_team_id(team1)]["wins"] = team_data[get_team_id(team1)]["wins"] + 1
+                team_data[get_team_id(team2)]["losses"] = team_data[get_team_id(team2)]["losses"] + 1
+                with open("teams.json", "w") as f:
+                    json.dump(team_data, f)
+                print(f"TEAM 1 WON {score1} to {score2}")
+                elo1 = k_factor*(1 - exp1)
+                print(f"ELO CHANGE: {elo1}")
+                elo2 = k_factor*(0 - exp2)
+                print(f"ELO CHANGE FOR TEAM 2: {elo2}")
+                
+                with open("leaderboard.json", "r") as f:
+                    data = json.load(f)
+                team_elo = get_total_team_elo(team1)
+                team_id = get_team_id(team1)
+                
+                with open("teams.json", "r") as f:
+                    team_data = json.load(f)
+                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+                
+                factor_sum = 0
+                for player in team1:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
+                            entry["wins"] = entry["wins"] + 1
+                print("CHANGES FOR TEAM 1:")            
+                for player in team1:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            factor = (1 - (entry["elo"] / team_elo))
+                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo1))} : ({int(((factor / factor_sum) * elo1))})")
+                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo1)))) + " (+" + str(int(((factor / factor_sum) * elo1))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
+                            entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo1)))
+                with open("leaderboard.json", "w") as f:
+                    json.dump(data, f)
+                
+                with open("leaderboard.json", "r") as f:
+                    data = json.load(f)
+                team_elo = get_total_team_elo(team2)
+                team_id = get_team_id(team2)
+                
+                teamsMessage = teamsMessage + "\n"
+                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team2))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+                print("CHANGES FOR TEAM 2:")
+                for player in team2:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))) - entry["elo"]})")
+                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))) + " (" + str(int(((entry["elo"] / team_elo) * elo2))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
+                            entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))
+                            entry["losses"] = entry["losses"] + 1
+                with open("leaderboard.json", "w") as f:
+                    json.dump(data, f)
+            else:
+                with open("teams.json", "r") as f:
+                    team_data = json.load(f)
+                team_data[get_team_id(team2)]["wins"] = team_data[get_team_id(team2)]["wins"] + 1
+                team_data[get_team_id(team1)]["losses"] = team_data[get_team_id(team1)]["losses"] + 1
+                with open("teams.json", "w") as f:
+                    json.dump(team_data, f)
+                print(f"TEAM 2 WON {score2} to {score1}")
+                elo1 = k_factor*(0 - exp1)
+                print(f"ELO CHANGE: {elo1}")
+                elo2 = k_factor*(1 - exp2)
+                print(f"ELO CHANGE FOR TEAM 2: {elo2}")
+                
+                with open("leaderboard.json", "r") as f:
+                    data = json.load(f)
+                team_elo = get_total_team_elo(team1)
+                team_id = get_team_id(team1)
+                
+                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team1))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+                print("CHANGES FOR TEAM 2:")
+                for player in team1:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))) - entry["elo"]})")
+                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))) + " (" + str(int(((entry["elo"] / team_elo) * elo1))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
+                            entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))
+                            entry["losses"] = entry["losses"] + 1
+                with open("leaderboard.json", "w") as f:
+                    json.dump(data, f)
+                with open("leaderboard.json", "r") as f:
+                    data = json.load(f)
+                    
+                team_elo = get_total_team_elo(team2)
+                team_id = get_team_id(team2)
+                teamsMessage = teamsMessage + "\n"
+                with open("teams.json", "r") as f:
+                    team_data = json.load(f)
+                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+                
+                factor_sum = 0
+                for player in team2:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
+                            entry["wins"] = entry["wins"] + 1
+                print("CHANGES FOR TEAM 2:")            
+                for player in team2:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            factor = (1 - (entry["elo"] / team_elo))
+                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo2))} : ({int(((factor / factor_sum) * elo2))})")
+                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo2)))) + " (+" + str(int(((factor / factor_sum) * elo2))) + ")" + " **Winrate:**  " + str(round((entry["wins"]  / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
+                            entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo2)))
+                with open("leaderboard.json", "w") as f:
+                    json.dump(data, f)
+            
+            with open("teams.json", "r") as f:
+                team_data = json.load(f)
+            name1 = team_data[get_team_id(team1)]["team_name"]
+            name2 = team_data[get_team_id(team2)]["team_name"]
+            if score1 > score2:
+                msg = "**" + name1 + "** beat **" + name2 + "** " + str(score1) + " to " + str(score2)
+            else:
+                msg = "**" + name2 + "** beat **" + name1 + "** " + str(score2) + " to " + str(score1)
+            original_message = self.bot.games_messages[i]        
+            new_embed = discord.Embed(title=f"Game {i + 1} | {msg}", description=teamsMessage,colour=0x00a2ed)
+            original_message = await original_message.edit(embed=new_embed)
+                
+            with open("leaderboard.json", "r") as f:
+                data = json.load(f)
+            for team in self.bot.teams:
+                for player in team:
+                    for entry in data:
+                        if entry["id"] == player["id"]:
+                            player = entry
+            #update_stats([team1,team2], [score1,score2], self.bot, score_data)
+            #self.bot.teams = refresh_teams(self.bot)
+            #team1 = self.bot.teams[self.bot.matchups[i][0]]
+            #team2 = self.bot.teams[self.bot.matchups[i][1]]
             #Update Embeds To Display Elo Changes and Winners/Losers
-            await update_embed([team1,team2], self.bot, i, [pregame_stats[self.bot.matchups[i][0]],pregame_stats[self.bot.matchups[i][1]]])
+            #await update_embed([team1,team2], self.bot, i, [pregame_stats[self.bot.matchups[i][0]],pregame_stats[self.bot.matchups[i][1]]])
         #Determine New Matchups
         #print(match_results)
+        
         if len(self.bot.teams) % 2 == 0:
             for i in range(len(match_results) - 1):
                 loss = match_results[i][1]
@@ -449,7 +598,7 @@ class RegistrationMenu(discord.ui.View):
             original_message = self.bot.games_messages[-1]
             original_message = await original_message.edit(embed = new_embed, view = None)
         teamsMessage = ""
-
+        
 
 
         
@@ -595,8 +744,8 @@ def generate_team_name(id):
     return "The " + adjectives[int(last4)] + " " + animals[int(next2)] 
 
 def get_team_id(team):
-    print("ID TEAM")
-    print(team)
+    #print("ID TEAM")
+    #print(team)
     id_sum = 0
     for player in team:
         id_sum = id_sum + player["id"]
@@ -627,16 +776,13 @@ def update_stats(teams, score, bot, score_data):
 
     
 
-def get_expected(teams, index):
+def get_expected(teams):
     elo_diff_factor = 400 #The elo difference where the better team should have a ~90% chance of winning
 
     avg1 = getTeamAverage(teams[0])
     avg2 = getTeamAverage(teams[1])
 
-    if index == 0:
-        return 1/(1 + 10**((avg2 - avg1)/elo_diff_factor))
-    else:
-        return 1/(1 + 10**((avg1 - avg2)/elo_diff_factor))
+    return 1/(1 + 10**((avg2 - avg1)/elo_diff_factor))
 
 def update_players_stats(team, elo, result, bot):
     with open('teams.json', 'r') as f:
