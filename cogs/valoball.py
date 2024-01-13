@@ -58,7 +58,7 @@ class Valoball(commands.Cog):
         
     async def after_ready(self):
         await self.bot.wait_until_ready()
-        channel = self.bot.get_channel(993243011326673010)
+        channel = self.bot.get_channel(1193707309956866118)
         embed = discord.Embed(title = "Valoball Test Embed", color = 0xdaaa00)
         view = RegistrationMenu(self.bot)
         if self.bot.spawn_message == None:
