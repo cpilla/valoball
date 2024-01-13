@@ -37,8 +37,11 @@ class Valoball(commands.Cog):
                       {"id": 12, "name": "Chin", "wins": 0, "losses": 0, "elo": 203}, 
                       {"id": 13, "name": "Sam", "wins": 0, "losses": 0, "elo": 166}] # Hardcoded start for queue for testing duo/trio queue
         '''
+        self.bot.queue = []
         with open("leaderboard.json", "r") as f:
-            bot.queue = json.load(f)
+            data = json.load(f)
+        for key in data:
+            self.bot.queue.append(int(key))
         #bot.queue = []
         # bot.queue = [] # Comment for testing
         bot.duoTrioQueue = []
@@ -65,6 +68,10 @@ class Valoball(commands.Cog):
             except:
                 pass
             self.bot.spawn_message = await channel.send(embed=embed, view=view)
+        if self.bot.queueMessage == None:
+            queue_embed = discord.Embed(title = "Valoball Queue", colour=0x00f549)
+            self.bot.queueMessage = await channel.send(embed=queue_embed)
+            await update_queue(self.bot)
 
     async def cog_load(self):
         asyncio.create_task(self.after_ready())
@@ -89,51 +96,31 @@ class RegistrationMenu(discord.ui.View):
 
     @discord.ui.button(label="Enter Queue", style=discord.ButtonStyle.green, custom_id="Enter Queue Button")
     async def enter_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        
+        if interaction.user.id in self.bot.queue:
+            await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+            return
+        
         # Logic for adding new players to json if they are not already in it
-        foundFlag = 0
         with open("leaderboard.json", "r") as f:
             leaderboard = json.load(f)
         # print(leaderboard)
         # print(leaderboard[-1]["id"] + 1)
-        for player in leaderboard:    # For loop accessing whole array of dictionaries (player = dict)
-            if interaction.user.id == player["id"]: # Player is already in leaderboard
-                foundFlag = 1
-                break
-        if foundFlag == 0:                              # Player is not in leaderboard
-
+        try: #check if the key exists in the dictionary
+            player = leaderboard[str(interaction.user.id)]
+        except KeyError: #if it doesnt
             nickNameView = NicknameModal(bot=self.bot)
             await interaction.response.send_modal(nickNameView)
             await nickNameView.wait()
-            nickname = nickNameView.children[0].value
-
-            newPlayer = {"id": interaction.user.id, "name": nickname, "wins": 0, "losses": 0, "elo": 750}
-            leaderboard.append(newPlayer)
+            nickname = nickNameView.children[0].value #get the users prefered nickname
+            newPlayer = {"name": nickname, "wins": 0, "losses": 0, "elo": 850, "id": interaction.user.id}
+            leaderboard[interaction.user.id] = newPlayer #add them to the leaderboard
             with open("leaderboard.json", "w") as f:
                 json.dump(leaderboard, f)
-            # print(leaderboard)
-            #updatedJSON = json.dumps(leaderboard)
-            #f = open("leaderboard.json", "w")
-            #f.write(updatedJSON)
-            #f.close()
         
-        alreadyInQueueFlag = 0
-        for player in self.bot.queue:
-            if interaction.user.id == player["id"]:
-                alreadyInQueueFlag = 1
-                break
-        if (alreadyInQueueFlag == 0):
-            # Place player in queue
-            with open("leaderboard.json", "r") as f:
-                leaderboard = json.load(f)
-            #leaderboard = json.load(open("leaderboard.json"))
-            for player in leaderboard:
-                if interaction.user.id == player["id"]:
-                    playerToQueue = player
-            self.bot.queue.append(playerToQueue)
-            if (foundFlag == 1):
-                await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"You ({interaction.user.name}) are already in the queue for volleyball!", ephemeral=True)
+        self.bot.queue.append(interaction.user.id)
+        await update_queue(self.bot)
+        await interaction.response.send_message(f"You ({interaction.user.name}) have entered the queue for volleyball!", ephemeral=True)
 
         # if interaction.user.name not in self.bot.queue:
         #     self.bot.queue.append(interaction.user.name)
@@ -147,6 +134,24 @@ class RegistrationMenu(discord.ui.View):
         numTeams = len(self.bot.queue) // 3
         numQueues = len(self.bot.duoTrioQueue)
 
+        if interaction.user.id not in self.bot.queue:
+            await interaction.response.send_message(f"Please join the queue for volleyball first before doing this!", ephemeral=True)
+            return
+
+        if (numTeams <= numQueues):
+            await interaction.response.send_message(f"No more special queues available!", ephemeral=True)
+            return
+        
+        foundFlag = 0
+        for queues in self.bot.duoTrioQueue:
+            if (findDictInList(queues, "id", interaction.user.id) != None):
+                foundFlag = 1
+                break
+        if (foundFlag == 0):
+            await interaction.response.send_message("Please select who you want to queue with!", view=SelectorView(bot=self.bot, interaction=interaction))
+        else:
+            await interaction.response.send_message(f"You are already queued with people!", ephemeral=True)
+        '''
         if findDictInList(self.bot.queue, "id", interaction.user.id) == None: # If player is not in queue yet
             await interaction.response.send_message(f"Please join the queue for volleyball first before doing this!", ephemeral=True)
         else:   # If player is in queue
@@ -163,12 +168,27 @@ class RegistrationMenu(discord.ui.View):
                     await interaction.response.send_message("Please select who you want to queue with!", view=SelectorView(bot=self.bot, interaction=interaction))
                 else:
                     await interaction.response.send_message(f"You are already queued with people!", ephemeral=True)
-
+        '''
         # await interaction.response.defer()
         
         
     @discord.ui.button(label="Exit Queue", style=discord.ButtonStyle.red, custom_id="Exit Queue Button")
     async def exit_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id not in self.bot.queue:
+            await interaction.response.send_message(f"You ({interaction.user.name}) are not in the queue for volleyball!", ephemeral=True)
+            return
+        
+        self.bot.queue.remove(interaction.user.id)
+        for queues in self.bot.duoTrioQueue:
+            retVal = findDictInList(queues, "id", interaction.user.id)
+            if (retVal != None):
+                if (len(queues) == 2):
+                    self.bot.duoTrioQueue.remove(queues)
+                else:
+                    queues.remove(retVal)
+        await update_queue(self.bot)
+        await interaction.response.send_message(f"You ({interaction.user.name}) have exited the queue for volleyball!", ephemeral=True)
+        '''
         if findDictInList(self.bot.queue, "id", interaction.user.id) == None:
             await interaction.response.send_message(f"You ({interaction.user.name}) are not in the queue for volleyball!", ephemeral=True)
         else:
@@ -182,8 +202,9 @@ class RegistrationMenu(discord.ui.View):
                         queues.remove(retVal)
             await interaction.response.send_message(f"You ({interaction.user.name}) have exited the queue for volleyball!", ephemeral=True)
             print(self.bot.duoTrioQueue)
-    
-    @discord.ui.button(label="View Queue", style=discord.ButtonStyle.blurple, custom_id="View Queue Button")
+        '''
+        
+    @discord.ui.button(label="View Queue", style=discord.ButtonStyle.blurple, custom_id="View Queue Button", disabled=True)
     async def view_queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         queue_string = ""
         with open("leaderboard.json", "r") as f:
@@ -191,10 +212,11 @@ class RegistrationMenu(discord.ui.View):
         # print(leaderboard)
         for player in self.bot.queue:
             # print(player)
-            player = findDictInList(leaderboard, "id", player["id"])
+            #player = findDictInList(leaderboard, "id", player["id"])
             #print(get_rank(self.bot.ranks, player))
             #emoji = "<:" + get_rank(self.bot.ranks, player) + ">"
-            queue_string = queue_string + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round((player["wins"] / max(1, (player["wins"] + player["losses"])) * 100), 2)) + "%\n"
+            entry = leaderboard[str(player)]
+            queue_string = queue_string + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + "  **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
 
         embed = discord.Embed(title="Valoball Queue", description=queue_string,colour=0x00f549)
         if self.bot.queueMessage != None:
@@ -204,18 +226,19 @@ class RegistrationMenu(discord.ui.View):
     
     @discord.ui.button(label="Generate Teams", style=discord.ButtonStyle.blurple, custom_id="Generate Teams Button")
     async def generate_teams_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-
+          
         # print(self.bot.duoTrioQueue)
         with open("teams.json", 'r') as f:
             team_data = json.load(f)
         #f = open('teams.json')
         #team_data = json.load(f)
-
+        with open("leaderboard.json", 'r') as f:
+            data = json.load(f)
         numTeams = len(self.bot.queue) // 3  # Prioritize 3-player teams
         totalElo = 0
         eloRange = 50
         for player in self.bot.queue:
-            totalElo += player["elo"]
+            totalElo += data[str(player)]["elo"]
         avgElo = totalElo / len(self.bot.queue) # Average Elo of all players in queue
         
         # While average team elos aren't in range, increase range every 5-10 iterartions
@@ -242,7 +265,7 @@ class RegistrationMenu(discord.ui.View):
                     for queues in self.bot.duoTrioQueue:
                         # print(str(len(remainingPlayers)) + " : " + str(playerNum))
                         if (len(remainingPlayers) > 0):
-                            if (findDictInList(queues, "id", remainingPlayers[playerNum]["id"]) != None):
+                            if (findDictInList(queues, "id", data[str(remainingPlayers[playerNum])]["id"]) != None):
                                 # print("Hit new if statement\n")
                                 queuePlayerFlag = 1
                                 # print(len(queues))
@@ -254,7 +277,7 @@ class RegistrationMenu(discord.ui.View):
                                         remainingPlayers.pop(indexToPop)
                                         player += 1
                     if (queuePlayerFlag == 0 and len(remainingPlayers) > 0):
-                        teams[team].append(remainingPlayers[playerNum])  # Add random player to team
+                        teams[team].append(data[str(remainingPlayers[playerNum])])  # Add random player to team
                         remainingPlayers.pop(playerNum) # Remove player from available players list
                         player += 1
                     # print(len(remainingPlayers))
@@ -356,9 +379,8 @@ class RegistrationMenu(discord.ui.View):
             data = json.load(f)
         for team in self.bot.teams:
             for player in team:
-                for entry in data:
-                    if entry["id"] == player["id"]:
-                        player = entry
+                entry = data[str(player["id"])]
+                player = entry
         
         pregame_stats = self.bot.teams
         match_results = []
@@ -409,22 +431,20 @@ class RegistrationMenu(discord.ui.View):
                 
                 with open("teams.json", "r") as f:
                     team_data = json.load(f)
-                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
+                teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round(((team_data[team_id]["wins"]) / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
                 
                 factor_sum = 0
                 for player in team1:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
-                            entry["wins"] = entry["wins"] + 1
+                    entry = data[str(player["id"])]
+                    factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
+                    entry["wins"] = entry["wins"] + 1
                 print("CHANGES FOR TEAM 1:")            
                 for player in team1:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            factor = (1 - (entry["elo"] / team_elo))
-                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo1))} : ({int(((factor / factor_sum) * elo1))})")
-                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo1)))) + " (+" + str(int(((factor / factor_sum) * elo1))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
-                            entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo1)))
+                    entry = data[str(player["id"])]
+                    factor = (1 - (entry["elo"] / team_elo))
+                    print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo1))} : ({int(((factor / factor_sum) * elo1))})")
+                    teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo1)))) + " (+" + str(int(((factor / factor_sum) * elo1))) + ")" + " **Winrate:**  " + str(round(((entry["wins"] + 1) / max(1, (entry["wins"] + 1 + entry["losses"])) * 100), 2)) + "%\n"
+                    entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo1)))
                 with open("leaderboard.json", "w") as f:
                     json.dump(data, f)
                 
@@ -437,12 +457,11 @@ class RegistrationMenu(discord.ui.View):
                 teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team2))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
                 print("CHANGES FOR TEAM 2:")
                 for player in team2:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))) - entry["elo"]})")
-                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))) + " (" + str(int(((entry["elo"] / team_elo) * elo2))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
-                            entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))
-                            entry["losses"] = entry["losses"] + 1
+                    entry = data[str(player["id"])]
+                    print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo2))) - entry["elo"]})")
+                    teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))) + " (" + str(int(((entry["elo"] / team_elo) * elo2))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"] + 1)) * 100), 2)) + "%\n"
+                    entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo2)))
+                    entry["losses"] = entry["losses"] + 1
                 with open("leaderboard.json", "w") as f:
                     json.dump(data, f)
             else:
@@ -464,14 +483,13 @@ class RegistrationMenu(discord.ui.View):
                 team_id = get_team_id(team1)
                 
                 teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team1))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
-                print("CHANGES FOR TEAM 2:")
+                print("CHANGES FOR TEAM 1:")
                 for player in team1:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))) - entry["elo"]})")
-                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))) + " (" + str(int(((entry["elo"] / team_elo) * elo1))) + ")" + " **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
-                            entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))
-                            entry["losses"] = entry["losses"] + 1
+                    entry = data[str(player["id"])]
+                    print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))} : ({(int(entry["elo"] + ((entry["elo"] / team_elo) * elo1))) - entry["elo"]})")
+                    teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))) + " (" + str(int(((entry["elo"] / team_elo) * elo1))) + ")" + " **Winrate:**  " + str(round((entry["wins"]  / max(1, (entry["wins"] + entry["losses"] + 1)) * 100), 2)) + "%\n"
+                    entry["elo"] = int(entry["elo"] + int(((entry["elo"] / team_elo) * elo1)))
+                    entry["losses"] = entry["losses"] + 1
                 with open("leaderboard.json", "w") as f:
                     json.dump(data, f)
                 with open("leaderboard.json", "r") as f:
@@ -486,18 +504,17 @@ class RegistrationMenu(discord.ui.View):
                 
                 factor_sum = 0
                 for player in team2:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
-                            entry["wins"] = entry["wins"] + 1
+                    entry = data[str(player["id"])]
+                    factor_sum = factor_sum + (1 - (entry["elo"] / team_elo))
+                    entry["wins"] = entry["wins"] + 1
+                                                
                 print("CHANGES FOR TEAM 2:")            
                 for player in team2:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            factor = (1 - (entry["elo"] / team_elo))
-                            print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo2))} : ({int(((factor / factor_sum) * elo2))})")
-                            teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo2)))) + " (+" + str(int(((factor / factor_sum) * elo2))) + ")" + " **Winrate:**  " + str(round((entry["wins"]  / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
-                            entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo2)))
+                    entry = data[str(player["id"])]
+                    factor = (1 - (entry["elo"] / team_elo))
+                    print(f"{entry["name"]}: {entry["elo"]} -> {int(entry["elo"] + ((factor / factor_sum) * elo2))} : ({int(((factor / factor_sum) * elo2))})")
+                    teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + " -> " + str(int(entry["elo"] + int(((factor / factor_sum) * elo2)))) + " (+" + str(int(((factor / factor_sum) * elo2))) + ")" + " **Winrate:**  " + str(round(((entry["wins"] + 1) / max(1, (entry["wins"] + 1 + entry["losses"])) * 100), 2)) + "%\n"
+                    entry["elo"] = int(entry["elo"] + int(((factor / factor_sum) * elo2)))
                 with open("leaderboard.json", "w") as f:
                     json.dump(data, f)
             
@@ -517,9 +534,8 @@ class RegistrationMenu(discord.ui.View):
                 data = json.load(f)
             for team in self.bot.teams:
                 for player in team:
-                    for entry in data:
-                        if entry["id"] == player["id"]:
-                            player = entry
+                    player = data[str(player["id"])]
+                    
             #update_stats([team1,team2], [score1,score2], self.bot, score_data)
             #self.bot.teams = refresh_teams(self.bot)
             #team1 = self.bot.teams[self.bot.matchups[i][0]]
@@ -571,6 +587,8 @@ class RegistrationMenu(discord.ui.View):
                 teams.append(team_data[team_id])
                 teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
                 for player in team:
+                    entry = data[str(player["id"])]
+                    player = entry
                     teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round((player["wins"] / max(1, (player["wins"] + player["losses"])) * 100), 2)) + "%\n"
                 teamsMessage = teamsMessage + "\n"
             new_view = Score_Report_Button(teams, self.bot, match_results.index(game))
@@ -592,6 +610,8 @@ class RegistrationMenu(discord.ui.View):
             team_id = get_team_id(team)
             teamsMessage = teamsMessage + "**" + team_data[team_id]["team_name"] + ":** **Elo:** " + str(int(getTeamAverage(team))) + " | **Winrate:**" + str(round((team_data[team_id]["wins"] / max(1, (team_data[team_id]["wins"] + team_data[team_id]["losses"])) * 100), 2)) + "%\n"
             for player in team:
+                entry = data[str(player["id"])]
+                player = entry
                 teamsMessage = teamsMessage + "<:" + get_rank(self.bot.ranks, player) + "> " + "**" + player["name"] + "**  **ELO:** " + str(player["elo"]) + "  **Winrate:**  " + str(round((player["wins"] / max(1, (player["wins"] + player["losses"])) * 100), 2)) + "%\n"
             teamsMessage = teamsMessage + "\n"
             new_embed = discord.Embed(title=f"On Deck", description=teamsMessage,colour=0x00a2ed)
@@ -678,20 +698,23 @@ class Selector(discord.ui.Select):
         selectorOptions = []
         for player in bot.queue:
             # print(player["name"])
-            if (player["id"] != interaction.user.id):
+            if (player != interaction.user.id):
                 # Don't add if player is the person selecting queues
                 # print("Hit User ID")
                 # break
                 foundFlag = 0
                 for queues in bot.duoTrioQueue:
-                    if (findDictInList(queues, "id", player["id"]) != None):
+                    if (findDictInList(queues, "id", player) != None):
                         foundFlag = 1
                         print("Hit Found Flag")
                         # print(player["name"])
                         break
                 if (foundFlag == 0):
                     # print(player["name"])
-                    playerOption = discord.SelectOption(label = player["name"], value = player["id"], description = str(player["elo"]), emoji=("<:" + get_rank(self.bot.ranks, player) + ">")) # description= str(player["elo"]))
+                    with open("leaderboard.json", "r") as f:
+                        data = json.load(f)
+                    entry = data[player]
+                    playerOption = discord.SelectOption(label = entry["name"], value = player, description = str(entry["elo"]), emoji=("<:" + get_rank(self.bot.ranks, entry) + ">")) # description= str(player["elo"]))
                     selectorOptions.append(playerOption)
         super().__init__(placeholder="Please choose up to two players to queue with!", min_values=1, max_values=2, options=selectorOptions)
 
@@ -710,6 +733,18 @@ class SelectorView(discord.ui.View):
     def __init__(self, bot, interaction: discord.Interaction, *, timeout: float | None = 180):
         super().__init__(timeout=timeout)
         self.add_item(Selector(bot=bot, interaction=interaction))
+
+async def update_queue(bot):
+    with open("leaderboard.json", "r") as f:
+        leaderboard = json.load(f)
+    
+    queue_string = ""
+    for player in bot.queue:
+        entry = leaderboard[str(player)]
+        queue_string = queue_string + "<:" + get_rank(bot.ranks, entry) + "> " + "**" + entry["name"] + "**  **ELO:** " + str(entry["elo"]) + "  **Winrate:**  " + str(round((entry["wins"] / max(1, (entry["wins"] + entry["losses"])) * 100), 2)) + "%\n"
+    
+    new_embed = discord.Embed(title=f"Valoball Queue", description=queue_string,colour=0x00f549)
+    await bot.queueMessage.edit(embed=new_embed)
 
 def findDictInList(lst, key, value):
     for item in lst:
